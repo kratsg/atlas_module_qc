@@ -1,2 +1,3 @@
-# atlas_module_qc
-Non readout related stuff needed for ATLAS module QC
+﻿# bla
+
+Install https://gitlab.cern.ch/atlas-itk/sw/db/pixels/production_database_scripts
