@@ -58,7 +58,7 @@ def upload_iv_data(module_sn, iv_data_file):
         iv_data = _read_file(iv_data_file)
         log.info("Test: would send data")
         log.info(json.dumps(iv_data, indent=4))
-        # itk_prodDB.upload_iv_curve(module_sn=module_sn, iv_data=iv_data)
+        itk_prodDB.upload_iv_curve(module_sn=module_sn, iv_data=iv_data)
 
 if __name__ == "__main__":
     # Example how to upload IV curve data

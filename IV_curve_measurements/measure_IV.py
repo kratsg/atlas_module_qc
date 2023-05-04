@@ -1,5 +1,9 @@
 ''' Script for measuring IV curve. Required HW: Keithley 2410 (SMU) + Sensirion Bridge (Temperature Sensor)
 '''
+
+# TODO: pass/fail criteria based on max leakage current + breakdown voltage
+# TODO: calculate Vdep and Vbreak (20 percent increase in dV = 5 V)...
+
 import numpy as np
 import tables as tb
 import logging
@@ -34,6 +38,8 @@ wait_meas = 0.5  # time in seconds between current measurements
 n_meas = 10  # number of measurements per steps (current are averaged)
 bias_voltage = -5  # if defined, ramp bias to bias voltage after scan is finished, has to be less than last scanned voltage
 
+
+sensor_sn = '20UPIS18100498'
 chip_id = "A-2-N4KX65-07B0"
 sensor_id = 'W15-A'
 others = 'IZM_FBK3D_PAD_11'
@@ -136,7 +142,7 @@ with tb.open_file(output_filename + '.h5', 'r+') as in_file_h5:
     plt.savefig(output_filename + '.pdf')
 
 # convert to json
-# output_file_json = convert_h5_to_json(input_file_h5=output_filename + '.h5')
+output_file_json = convert_h5_to_json(input_file_h5=output_filename + '.h5', sensor_sn=sensor_sn)
 
 # upload IV data
-# upload_iv_data(module_sn='asa', iv_data_file=output_file_json)
+upload_iv_data(module_sn=module_sn, iv_data_file=output_file_json)

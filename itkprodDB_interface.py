@@ -145,7 +145,7 @@ class ITkProdDB(object):
             if current_stage == "sensor_manufacturer":
                 set_stages = ['WAFER_PROCESSING', 'BAREMODULEASSEMBLY', 'BAREMODULERECEPTION']
                 for stage in set_stages:
-                    stage_old = current_stage.copy()
+                    stage_old = current_stage
                     self._set_component_stage(component_code=sensor_sn, component_stage=stage)  # change stage
                     time.sleep(2.0)
                     current_stage = self._get_component_stage(component_code=sensor_sn)
@@ -153,7 +153,7 @@ class ITkProdDB(object):
             elif current_stage == 'WAFER_PROCESSING':
                 set_stages = ['BAREMODULEASSEMBLY', 'BAREMODULERECEPTION']
                 for stage in set_stages:
-                    stage_old = current_stage.copy()
+                    stage_old = current_stage
                     self._set_component_stage(component_code=sensor_sn, component_stage=stage)  # change stage
                     time.sleep(2.0)
                     current_stage = self._get_component_stage(component_code=sensor_sn)
@@ -161,7 +161,7 @@ class ITkProdDB(object):
             elif current_stage == 'BAREMODULEASSEMBLY':
                 set_stages = ['BAREMODULERECEPTION']
                 for stage in set_stages:
-                    stage_old = current_stage.copy()
+                    stage_old = current_stage
                     self._set_component_stage(component_code=sensor_sn, component_stage=stage)  # change stage
                     time.sleep(2.0)
                     current_stage = self._get_component_stage(component_code=sensor_sn)
@@ -181,7 +181,7 @@ class ITkProdDB(object):
             if current_stage == "sensor_manufacturer":
                 set_stages = ['WAFER_PROCESSING', 'BAREMODULEASSEMBLY', 'BAREMODULERECEPTION']
                 for stage in set_stages:
-                    stage_old = current_stage.copy()
+                    stage_old = current_stage
                     self._set_component_stage(component_code=module_sn, component_stage=stage)  # change stage
                     time.sleep(2.0)
                     current_stage = self._get_component_stage(component_code=module_sn)
@@ -189,7 +189,7 @@ class ITkProdDB(object):
             elif current_stage == 'WAFER_PROCESSING':
                 set_stages = ['BAREMODULEASSEMBLY', 'BAREMODULERECEPTION']
                 for stage in set_stages:
-                    stage_old = current_stage.copy()
+                    stage_old = current_stage
                     self._set_component_stage(component_code=module_sn, component_stage=stage)  # change stage
                     time.sleep(2.0)
                     current_stage = self._get_component_stage(component_code=module_sn)
@@ -197,7 +197,7 @@ class ITkProdDB(object):
             elif current_stage == 'BAREMODULEASSEMBLY':
                 set_stages = ['BAREMODULERECEPTION']
                 for stage in set_stages:
-                    stage_old = current_stage.copy()
+                    stage_old = current_stage
                     self._set_component_stage(component_code=module_sn, component_stage=stage)  # change stage
                     time.sleep(2.0)
                     current_stage = self._get_component_stage(component_code=module_sn)
@@ -207,7 +207,9 @@ class ITkProdDB(object):
 
         # Get ID of latest test run and link to bare module
         test_runs = self._get_component_test_runs(sensor_sn)
-        test_run_id = test_runs[0]['id']
+        test_run = test_runs[0]
+        test_run_id = test_run['id']
+
         
         link_to_bare_module_json = {
             "component": module_sn,
@@ -222,8 +224,6 @@ class ITkProdDB(object):
         self.log.debug("Test: would send data:\n")
         self.log.debug(json.dumps(link_to_bare_module_json, indent=4))
         dbAccess.doSomething("uploadTestRunResults", link_to_bare_module_json)
-
-        return ret
 
 
 if __name__ == '__main__':

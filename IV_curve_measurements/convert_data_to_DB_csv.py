@@ -22,9 +22,9 @@ fh.setLevel(loglevel)
 fh.setFormatter(logging.Formatter(fmt))
 log.addHandler(fh)
 
-def convert_h5_to_json(input_file_h5):
-    outfile_json = input_file[:-3] + '.json'
-    log.info('Converting {0} to {1]...'.format(input_file_h5, outfile_json))
+def convert_h5_to_json(input_file_h5, sensor_sn):
+    outfile_json = input_file_h5[:-3] + '.json'
+    log.info('Converting {0} to {1}...'.format(input_file_h5, outfile_json))
 
     with tb.open_file(input_file_h5, 'r') as in_file_h5:
         # Read values from file
@@ -53,7 +53,6 @@ def convert_h5_to_json(input_file_h5):
     local_time = datetime.fromtimestamp(start_timestamp)
 
     # Save to CSV
-    sensor_sn = '20UPIS18100498'
     insitute = 'BONN'
     date = local_time.strftime("%Y-%m-%dT%H:%MZ")
     prefix = 'A'
@@ -112,5 +111,6 @@ def convert_h5_to_json(input_file_h5):
 
 if __name__ == "__main__":
     # Example how to convert .h5 to .json file
+    sensor_sn = '20UPIS18100498'
     input_file_h5 = '/home/yannick/Documents/IV_curve_7-1_ID_G12-23_IZM_Sintef3D.h5'
-    convert_h5_to_json(input_file_h5)
+    convert_h5_to_json(input_file_h5, sensor_sn)
