@@ -1,4 +1,6 @@
 pyyaml
+pyserial
 coloredlogs
 tqdm
+sensirion-shdlc-sensorbridge
 basil-daq>=3.2.0<3.3.0
