@@ -17,6 +17,10 @@ from basil.dut import Dut
 from upload_IV_curve_data import upload_iv_data
 from convert_data_to_DB_csv import convert_h5_to_json
 
+# Compression for data files
+FILTER_RAW_DATA = tb.Filters(complib='blosc', complevel=5, fletcher32=False)
+FILTER_TABLES = tb.Filters(complib='zlib', complevel=5, fletcher32=False)
+
 # Logger
 loglevel = logging.DEBUG  # logging.INFO
 fmt = '%(asctime)s - [%(name)-15s] - %(levelname)-7s %(message)s'
@@ -28,6 +32,26 @@ fh.setLevel(loglevel)
 fh.setFormatter(logging.Formatter(fmt))
 log.addHandler(fh)
 
+# data format
+description_data = np.dtype([('voltage', float),
+                             ('current', float),
+                             ('current_err', float),
+                             ('timestamp', float),
+                             ('rel_humidity', float),
+                             ('chuck_temp', float)])
+
+description_meta_data = np.dtype([('sensor_sn', 'U32'),
+                                  ('chip_sn', 'U32'),
+                                  ('sensor_id', 'U32'),
+                                  ('sensor_type', 'U32'),
+                                  # ('voltages', 'O'),
+                                  ('max_leakage', float),
+                                  ('max_voltage', float),
+                                  ('current_limit', float),
+                                  ('wait_settle', int),
+                                  ('wait_meas', float),
+                                  ('n_meas', int)])
+
 # Settings
 voltages = list(range(-0, -151, -5)) # voltage steps of the IV curve
 max_leakage = 99e-6  # scan aborts if current is higher than this value
@@ -38,26 +62,45 @@ wait_meas = 0.5  # time in seconds between current measurements
 n_meas = 10  # number of measurements per steps (current are averaged)
 bias_voltage = -5  # if defined, ramp bias to bias voltage after scan is finished, has to be less than last scanned voltage
 
-
-sensor_sn = '20UPIS18100498'
-chip_id = "A-2-N4KX65-07B0"
-sensor_id = 'W15-A'
-others = 'IZM_FBK3D_PAD_11'
+# Output
 output_folder = '/home/yannick/git/bdaq53_py3/bdaq53/bdaq53/scans/output_data/'
-output_filename = output_folder + "IV_curve_%s_ID_%s_%s" % (chip_id, sensor_id, others)
-description = np.dtype([('voltage', np.float), ('current', np.float), ('current_err', np.float), ('n_meas', np.int), ('timestamp', np.float), ('rel_humidity', np.float), ('chuck_temp', np.float)])
+output_filename = output_folder + "IV_curve_%s" % sensor_sn
+
+# Sensor description
+sensor_sn = '20UPIS18100498_TEST'  # Sensor ATLAS S/N
+chip_sn = "A-2-N4KX65-07B0"  # Chip S/N
+sensor_id = 'W15-A'  # Sensor ID from vendor
+sensor_type = 'IZM_FBK3D'  # sensor type
 
 # Init devices
 dut = Dut('./periphery.yaml')
 dut.init()
 
 log.debug('Initialized sourcemeter: %s' % dut['SensorBias'].get_name())
-log.debug('Initialized temperature sensor: %s' % dut['Thermohygrometer'].get_name())
-
+# log.debug('Initialized temperature sensor: %s' % dut['Thermohygrometer'].get_name())
 log.info('Measure IV for V = %s' % voltages)
+log.info('Storing data in: %s' % output_filename)
 
 with tb.open_file(output_filename + '.h5', mode='w') as h5_file:
-    data = h5_file.create_table(h5_file.root, name='IV_data', description=description, title='Data from the IV scan')
+    # meta data
+    meta_data_table = h5_file.create_table(h5_file.root, name='meta_data', description=description_meta_data,
+                                           title='meta_data', filters=FILTER_TABLES)
+    meta_data_table.row['sensor_sn'] = sensor_sn
+    meta_data_table.row['chip_sn'] = chip_sn
+    meta_data_table.row['sensor_id'] = sensor_id
+    meta_data_table.row['sensor_type'] = sensor_type
+    # meta_data_table.row['voltages'] = voltages
+    meta_data_table.row['max_leakage'] = max_leakage
+    meta_data_table.row['max_voltage'] = max_voltage
+    meta_data_table.row['current_limit'] = current_limit
+    meta_data_table.row['wait_settle'] = wait_settle
+    meta_data_table.row['wait_meas'] = wait_meas
+    meta_data_table.row['n_meas'] = n_meas
+    meta_data_table.row.append()
+    meta_data_table.flush()
+    data = h5_file.create_table(h5_file.root, name='IV_data', description=description_data,
+                                title='Data from the IV scan', filters=FILTER_RAW_DATA)
+
     # dut['SensorBias'].set_current_limit(0.000001)
     # dut['SensorBias'].set_current_sense_range(0.000001)
     # dut['SensorBias'].set_current_nlpc(10)
@@ -92,7 +135,6 @@ with tb.open_file(output_filename + '.h5', mode='w') as h5_file:
             data.row['voltage'] = voltage
             data.row['current'] = current
             data.row['current_err'] = 0.0
-            data.row['n_meas'] = 1
             data.row['timestamp'] = time.time()
             data.row['rel_humidity'] = rel_humidity
             data.row['chuck_temp'] = chuck_temperature
@@ -111,7 +153,6 @@ with tb.open_file(output_filename + '.h5', mode='w') as h5_file:
         data.row['voltage'] = voltage
         data.row['current'] = np.mean(np.array(currents)[sel])
         data.row['current_err'] = np.std(currents)
-        data.row['n_meas'] = n_meas
         data.row['timestamp'] = time.time()
         data.row['rel_humidity'] = rel_humidity
         data.row['chuck_temp'] = chuck_temperature
