@@ -9,6 +9,7 @@ import coloredlogs
 from itkprodDB_interface import ITkProdDB
 
 # Logger
+logging.basicConfig()
 loglevel = logging.DEBUG  # logging.INFO
 fmt = '%(asctime)s - [%(name)-15s] - %(levelname)-7s %(message)s'
 log = logging.getLogger('IVDataUploader')
@@ -56,8 +57,8 @@ def upload_iv_data(module_sn, iv_data_file):
     '''
     with ITkProdDB() as itk_prodDB:
         iv_data = _read_file(iv_data_file)
-        log.info("Test: would send data")
-        log.info(json.dumps(iv_data, indent=4))
+        log.debug("Test: would send data")
+        log.debug(json.dumps(iv_data, indent=4))
         itk_prodDB.upload_iv_curve(module_sn=module_sn, iv_data=iv_data)
 
 if __name__ == "__main__":

@@ -22,7 +22,9 @@ fh.setLevel(loglevel)
 fh.setFormatter(logging.Formatter(fmt))
 log.addHandler(fh)
 
-def convert_h5_to_json(input_file_h5, sensor_sn):
+def convert_h5_to_json(input_file_h5):
+    insitute = 'BONN'
+
     outfile_json = input_file_h5[:-3] + '.json'
     log.info('Converting {0} to {1}...'.format(input_file_h5, outfile_json))
 
@@ -43,6 +45,7 @@ def convert_h5_to_json(input_file_h5, sensor_sn):
             log.debug('No entry found: chuck_temp')
             temperature = np.zeros_like(current)
 
+        sensor_sn = in_file_h5.root.meta_data[:]['sensor_sn'][0].decode("utf-8")
 
     # convert to DB format
     start_timestamp = timestamp[0]
@@ -51,16 +54,15 @@ def convert_h5_to_json(input_file_h5, sensor_sn):
     current = np.abs(current) * 1e6  # positive current in uA
     current_std = current_std * 1e6  # current std in uA
     local_time = datetime.fromtimestamp(start_timestamp)
-
-    # Save to CSV
-    insitute = 'BONN'
     date = local_time.strftime("%Y-%m-%dT%H:%MZ")
-    prefix = 'A'
-    depletion_voltage = '9'
     start_rel_humidity = str(rel_humidity[0])
     start_temp = str(temperature[0])
-    legend = 't/s\tU/V\tIavg/uA\tIstd/uA\tT/C\tRH/%'
-    header = [[sensor_sn + '  IV'], [insitute + '   ' + date], ["prefex" + prefix], ["depletion_voltage" + depletion_voltage], [start_rel_humidity + '    ' + start_temp], [legend]]
+
+    # # Save to CSV
+    # prefix = 'A'
+    # depletion_voltage = '9'  # FIXME
+    # legend = 't/s\tU/V\tIavg/uA\tIstd/uA\tT/C\tRH/%'
+    # header = [[sensor_sn + '  IV'], [insitute + '   ' + date], ["prefex" + prefix], ["depletion_voltage" + depletion_voltage], [start_rel_humidity + '    ' + start_temp], [legend]]
 
     # # CSV file
     # with open(input_file[:-3] + '.csv', 'w', encoding='UTF8', newline='') as f:
@@ -74,7 +76,6 @@ def convert_h5_to_json(input_file_h5, sensor_sn):
     #     for val in zip(timestamp, voltage, current, current_std, temperature, rel_humidity):
     #         writer.writerow(val)
     # ts_list = [0.5, 1.0]
-
 
     # JSON file
     json_string = {
@@ -98,8 +99,8 @@ def convert_h5_to_json(input_file_h5, sensor_sn):
                 "temperature": list(temperature),
                 "humidity": list(rel_humidity)
               },
-            "BREAKDOWN_VOLTAGE": 0.0,
-            "LEAK_CURRENT": 0.0
+            "BREAKDOWN_VOLTAGE": 0.0,  # Will be calculated later
+            "LEAK_CURRENT": 0.0  # # Will be calculated later
         }
     }
 

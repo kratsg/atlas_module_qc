@@ -207,10 +207,10 @@ class ITkProdDB(object):
 
         # Get ID of latest test run and link to bare module
         test_runs = self._get_component_test_runs(sensor_sn)
-        test_run = test_runs[0]
+        test_runs = sorted(test_runs, key=lambda d: d['stateTs'])  # sort test runs by stateTs (upload date)
+        test_run = test_runs[-1]  # get latest test run
         test_run_id = test_run['id']
 
-        
         link_to_bare_module_json = {
             "component": module_sn,
             "testType": "BARE_MODULE_SENSOR_IV",
@@ -221,8 +221,8 @@ class ITkProdDB(object):
             "problems": test_run['problems'],
             "results": {"LINK_TO_SENSOR_IV_TEST": test_run_id}
         }
-        self.log.debug("Test: would send data:\n")
-        self.log.debug(json.dumps(link_to_bare_module_json, indent=4))
+        self.log.info("Test: would send data:\n")
+        self.log.info(json.dumps(link_to_bare_module_json, indent=4))
         dbAccess.doSomething("uploadTestRunResults", link_to_bare_module_json)
 
 
