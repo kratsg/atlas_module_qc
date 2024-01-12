@@ -1,6 +1,6 @@
 ﻿# README
 
-Based on https://gitlab.cern.ch/atlas-itk/sw/db/itkdb
+Based on https://itkdb.docs.cern.ch/v0.4/
 
 Set environmental variables for automatic authentification:
 ```bash
