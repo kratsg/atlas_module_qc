@@ -66,13 +66,13 @@ class ITkProdDB(object):
 
     def get_irefs_of_module(self, bare_module_sns):
         for bare_module_sn in bare_module_sns:
-            itk_prodDB.log.info('Getting Iref trims of bare module: {0}...'.format(bare_module_sn))
+            self.log.info('Getting Iref trims of bare module: {0}...'.format(bare_module_sn))
             ret = self.client.get("getComponent", json={"component": bare_module_sn})
             for c in ret['children']:
                 if c['componentType']['code'] == 'FE_CHIP':
                     chip_sn_atlas = c['component']['serialNumber']
                     chip_sn = hex(int(chip_sn_atlas[-7:]))
-                    itk_prodDB.log.info('{0}, {1}, IREF TRIM bit: {2}'.format(chip_sn_atlas, chip_sn, itk_prodDB._get_iref_trims_chip(chip_sn=chip_sn_atlas)))
+                    self.log.info('{0}, {1}, IREF TRIM bit: {2}'.format(chip_sn_atlas, chip_sn, self._get_iref_trims_chip(chip_sn=chip_sn_atlas)))
 
     def _set_component_stage(self, component_code, component_stage):
         self.client.get("setComponentStage", json={'component': component_code,
@@ -303,8 +303,8 @@ class ITkProdDB(object):
 
 if __name__ == '__main__':
     with ITkProdDB() as itk_prodDB:
-        # Example 1: Get Iref trim bits for different chips from PDB
-        bare_module_sns = ['20UPGB42200137', '20UPGB42200138', '20UPGB42200140', '20UPGB42200141', '20UPGB42200142']
+        # Example 1: Get Iref trim bits for different modules from PDB
+        bare_module_sns = ['20UPGB42000111', '20UPGB42000112', '20UPGB42000113', '20UPGB42000114', '20UPGB42000115']
         itk_prodDB.get_irefs_of_module(bare_module_sns)
 
         # Example 2: Upload IV curve data to PDB
