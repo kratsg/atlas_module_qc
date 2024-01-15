@@ -30,6 +30,7 @@ class ITkProdDB(object):
         self.log.addHandler(self.fh)
 
         self.client = itkdb.Client(use_eos=True)
+        self.client.user._jwt_options["leeway"] = 50 # add more leeway
         self.client.user.authenticate()
         user = self.client.get("getUser", json={"userIdentity": self.client.user.identity})
         self.log.info('ITk production DB initialised. User {0}'.format(user))
