@@ -1,0 +1,140 @@
+#
+# ------------------------------------------------------------
+# Copyright (c) All rights reserved
+# SiLab, Institute of Physics, University of Bonn
+# ------------------------------------------------------------
+#
+# Based on https://gitlab.cern.ch/scipp/pixels/itkpix-srv.ucsc.edu/-/blob/master/docker-compose.yml
+
+version: "3.9"
+
+services:
+  influxdb:
+    restart: unless-stopped
+    image: influxdb:1.8.10  # influx 2.X does not provide the CLI anymore
+    container_name: influxdb
+    volumes:
+      - influxdb-storage:/var/lib/influxdb:rw,z
+      - /etc/localtime:/etc/localtime:ro,z
+    ports:
+      - 8086:8086
+    environment:
+      - INFLUXDB_DB=db0
+      - INFLUXDB_ADMIN_USER=${INFLUXDB_USERNAME}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_PASSWORD}
+      - INFLUXDB_HTTP_AUTH_ENABLED=true
+      - INFLUXDB_HTTP_FLUX_ENABLED=true
+      - INFLUXDB_META_DIR=/var/lib/influxdb/meta2
+    networks:
+      - int
+      - ext
+
+  mongodb:
+    restart: unless-stopped
+    image: mongo:latest
+    user: mongodb:976
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodb-storage:/data/db:rw,z
+      - /etc/localtime:/etc/localtime:ro,z
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
+    networks:
+      - int
+      - ext
+
+  localdb_viewer:
+    restart: unless-stopped
+    image: gitlab-registry.cern.ch/yarr/localdb-tools/viewer:v2-2-8
+    container_name: localdb_viewer
+    volumes:
+      - /etc/localtime:/etc/localtime:ro,z
+      - /mnt/cephfs/var_tmp:/var/tmp:rw,z
+      - /mnt/cephfs/var_log:/var/log:rw,z
+      - /mnt/cephfs/localdb_log:/home/data/viewer/logs:rw,z
+    tmpfs:
+      - /mnt/cephfs/tmp:rw,exec,nosuid,nodev,size=50G
+    depends_on:
+      - mongodb
+    command:
+      - "--host=mongodb"
+      - "--port=27017"
+      - "--db=localdb"
+      - "--username=${LOCALDB_USERNAME}"
+      - "--password=${LOCALDB_PASSWORD}"
+      - "--userdb=localdbtools"
+      - "--fhost=0.0.0.0" # local 127.0.0.1
+      - "--fport=5000"
+    environment:
+      - VIRTUAL_HOST=itkpix-localdb.physik.uni-bonn.de
+      - VIRTUAL_PORT=5000
+      - VIRTUAL_PATH=/
+    ports:
+      - 5000:5000
+    networks:
+      - proxy
+      - int
+      - ext
+
+  grafana:
+    restart: unless-stopped
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - /etc/localtime:/etc/localtime:ro,z
+      - grafana-storage:/var/lib/grafana:rw,z
+    depends_on:
+      - influxdb
+    ports:
+      - 3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USERNAME}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_ALLOW_ORG_CREATE=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_PLUGIN_GRAFANA_IMAGE_RENDERER_RENDERING_IGNORE_HTTPS_ERRORS=true
+      - GF_SERVER_ROOT_URL=http://${GRAFANA_DOMAIN}/grafana
+      - GF_SERVER_PROTOCOL=http
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_HTTP_PORT=3000
+      - GF_SERVER_DOMAIN=localhost
+
+      - VIRTUAL_HOST=itkpix-localdb.physik.uni-bonn.de
+      - VIRTUAL_PORT=3000
+      - VIRTUAL_PATH=/grafana
+    networks:
+      - proxy
+      - int
+      - ext
+
+
+volumes:
+  influxdb-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH_INFLUXDB}
+  mongodb-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH_MONGODB}
+  grafana-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH_GRAFANA}
+
+networks:
+  proxy:
+    external: true
+  int:
+    internal: true
+  ext:
