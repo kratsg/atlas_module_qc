@@ -33,7 +33,7 @@ def _read_xlsx_file(xlsx_file, sheet_name):
     return np.array(WS)
 
 def convert_flex_metrology_data(flex_metrology_data_file):
-    outfile_json = flex_metrology_data_file[:-4] + '_flex__metrology.json'
+    outfile_json = flex_metrology_data_file[:-4] + '_flex_metrology.json'
 
     data = _read_xlsx_file(xlsx_file=flex_metrology_data_file, sheet_name=0)
     flex_sn = '20UPGPQ' + ''.join(data[2, 2].replace(' ', '-').split('-'))
@@ -45,7 +45,7 @@ def convert_flex_metrology_data(flex_metrology_data_file):
     y_dim = round(data[39, 9], 3)
     hv_cap_thickness = round(data[43, 4], 3)
     flex_thickness = round(data[33, 4]  / 1000.0, 3)  # in mm
-    flex_thickness_std = round(data[35, 4]  / 1000.0, 4)  # in mm
+    flex_thickness_std = round(np.std(data[30:34, 2])  / 1000.0, 4)  # in mm
     power_connector_thickness = round(data[48, 4], 3)
 
     x_y_dim_in_envelop = False

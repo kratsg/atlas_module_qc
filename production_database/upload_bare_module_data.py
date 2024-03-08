@@ -14,6 +14,22 @@ from pathlib import Path
 from itkprodDB_interface import ITkProdDB
 
 
+X_FE_UPPER = 42.187 + 0.07
+X_FE_LOWER = 42.187
+Y_FE_UPPER = 40.255 + 0.07
+Y_FE_LOWER = 40.255
+
+FE_THICKNESS_UPPER = 150.0 + 25
+FE_THICKNESS_LOWER = 150.0 - 10
+
+X_SENSOR_UPPER = 39.5 + 0.05
+X_SENSOR_LOWER = 39.5
+Y_SENSOR_UPPER = 41.1 + 0.05
+Y_SENSOR_LOWER = 41.1
+
+MOD_THICKNESS_UPPER = 325 + 90
+MOD_THICKNESS_LOWER = 325 - 40
+
 def _read_file(filename):
     ''' Read .json file and check if it contains required keys.
     '''
@@ -35,16 +51,28 @@ def convert_bare_module_metrology_data(bare_module_metrology_data_file):
     datetime_str = data[6, 6]
     date = datetime_str.strftime("%Y-%m-%dT%H:%MZ")
 
-    sensor_x = round(np.mean(data[31:33, 7]), 3)
-    sensor_y = round(np.mean(data[34:36, 7]), 3)
+    sensor_x = round(np.mean(data[30:32, 7]), 3)
+    sensor_y = round(np.mean(data[33:35, 7]), 3)
     sensor_thickness = None  # not really needed
     sensor_thickness_std = None  # not really needed
-    fe_x = round(np.mean(data[28:30, 7]), 3)
-    fe_y = round(np.mean(data[37:39, 7]), 3)
-    fe_thickness = int(np.mean(data[42:46, 9]))
-    fe_thickness_std = int(np.std(data[42:46, 9]))
-    bare_module_thickness = int(data[31, 4])
-    bare_module_thickness_std = int(data[33, 4])
+    fe_x = round(np.mean(data[27:29, 7]), 3)
+    fe_y = round(np.mean(data[36:38, 7]), 3)
+    fe_thickness = int(np.mean(data[40:44, 9]))
+    fe_thickness_std = int(np.std(data[40:44, 9]))
+    bare_module_thickness = int(data[30, 4])
+    bare_module_thickness_std = int(np.std(data[27:31, 2]))
+
+    fe_dim_in_envelop = False
+    if (fe_x < X_FE_UPPER) and (fe_x > X_FE_LOWER) and (fe_y < Y_FE_UPPER) and (fe_y > Y_FE_LOWER) and (fe_thickness < FE_THICKNESS_UPPER) and (fe_thickness > FE_THICKNESS_LOWER):
+        fe_dim_in_envelop = True
+
+    sensor_dim_in_envelop = False
+    if (sensor_x < X_FE_UPPER) and (sensor_x > X_SENSOR_LOWER) and (sensor_y < Y_SENSOR_UPPER) and (sensor_y > Y_SENSOR_LOWER):
+        sensor_dim_in_envelop = True
+
+    mod_dim_in_envelop = False
+    if bare_module_thickness < MOD_THICKNESS_UPPER and bare_module_thickness > MOD_THICKNESS_LOWER:
+        mod_dim_in_envelop = True
 
     json_string = {
             "component": bare_module_sn,
@@ -52,7 +80,7 @@ def convert_bare_module_metrology_data(bare_module_metrology_data_file):
             "institution": "BONN",
             "runNumber": "1",  # FIXME
             "date": date,
-            "passed": True,
+            "passed": mod_dim_in_envelop & sensor_dim_in_envelop & fe_dim_in_envelop,
             "problems": False,
             "properties": {
                 # "OPERATOR": "Wolfgang Dietsche",
@@ -117,13 +145,13 @@ def convert_bare_module_vi_data(bare_module_vi_data_file):
     datetime_str = data[6, 6]
     date = datetime_str.strftime("%Y-%m-%dT%H:%MZ")
 
-    SENSOR_CONDITION_PASSED_QC = data[71, 5]
-    FE_CHIP_CONDITION_PASSED_QC = data[72, 5]
+    SENSOR_CONDITION_PASSED_QC = data[63, 5]
+    FE_CHIP_CONDITION_PASSED_QC = data[64, 5]
 
     # Read defect sources
     defect_list = []
     for i in range(13):
-        idx = 56 + i
+        idx = 48 + i
         if data[idx, 5] == 1 or str(data[idx, 5]) == 'yes':
             defect_list.append(i + 1)
     DEFECTS = defect_list
