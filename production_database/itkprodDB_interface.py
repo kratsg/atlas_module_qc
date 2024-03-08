@@ -75,8 +75,206 @@ class ITkProdDB(object):
                     chip_sn = hex(int(chip_sn_atlas[-7:]))
                     self.log.info('{0}, {1}, IREF TRIM bit: {2}'.format(chip_sn_atlas, chip_sn, self._get_iref_trims_chip(chip_sn=chip_sn_atlas)))
 
+
+    def check_uploaded_tests(self, module_sn):
+        # Check module tests
+        ret = self.client.get("getComponent", json={"component": module_sn})
+        current_stage = ret['currentStage']['code']
+        self.log.info('Checking tests for module: {0} (at stage {1})...'.format(module_sn, current_stage))
+        current_stage = ret['currentStage']['code']
+        required = _required_tests_module[current_stage]
+        # FIXME: VI is special. Needs to be uploaded for MODULE/ASSEMBLY and MODULE/WIREBONDING
+        found_tests = []
+        for r in ret['tests']:
+            if r['code'] in ['VISUAL_INSPECTION']:
+                for run in r['testRuns']:
+                    test_run = self.client.get("getTestRun", json={"testRun": run['id']})
+                    if (test_run['components'][0]['testedAtStage']['code']) == current_stage:
+                        self.log.info('Found module test: {0} for module {1}'.format(r['code'], module_sn))
+                        found_tests.append(r['code'])
+                        break
+            else:
+                self.log.info('Found module test: {0} for module {1}'.format(r['code'], module_sn))
+            found_tests.append(r['code'])
+
+        diff = set(required) - set(found_tests)
+        if len(diff) == 0:
+            self.log.success('No missing module tests found')
+        else:
+            self.log.warning('Missing module tests for module {0}: {1}'.format(module_sn, diff))
+
+        # check bare module
+        ret = self.client.get("getComponent", json={"component": module_sn})
+        # get bare module
+        for c in ret['children']:
+            if c['componentType']['code'] == 'BARE_MODULE': 
+                # bare_module_sn = c['componentType']
+                bare_module_sn = c['component']['serialNumber']
+                break
+        ret = self.client.get("getComponent", json={"component": bare_module_sn})
+        current_stage = ret['currentStage']['code']
+        required = _required_tests_bare_module[current_stage]
+        found_tests = []
+        for r in ret['tests']:
+            self.log.info('Found bare module test: {0} for bare module {1}'.format(r['code'], bare_module_sn))
+            found_tests.append(r['code'])
+
+        diff = set(required) - set(found_tests)
+
+        if len(diff) == 0:
+            self.log.success('No missing bare module tests found')
+        else:
+            self.log.warning('Missing bare module tests for bare module {0}: {1}'.format(bare_module_sn, diff))
+
+    def get_bare_iv_data(self, module_sn, wanted_tests, result):
+        # Check module tests
+        ret = self.client.get("getComponent", json={"component": module_sn})
+        current_stage = ret['currentStage']['code']
+        self.log.info('Checking {0} for module: {1} (at stage {2})...'.format(wanted_tests, module_sn, current_stage))
+
+        for c in ret['children']:
+            if c['componentType']['code'] == 'BARE_MODULE': 
+                # bare_module_sn = c['componentType']
+                bare_module_sn = c['component']['serialNumber']
+                break
+        ret = self.client.get("getComponent", json={"component": bare_module_sn})
+        for c in ret['children']:
+            if c['componentType']['code'] == 'SENSOR_TILE': 
+                # bare_module_sn = c['componentType']
+                sensor_sn = c['component']['serialNumber']
+                break
+        ret = self.client.get("getComponent", json={"component": sensor_sn})
+
+
+        for r in ret['tests']:
+            passed = True
+            if r['code'] in wanted_tests:
+                for rr in range(len(r['testRuns'])):
+                    test_run_id = r['testRuns'][rr]["id"]
+                    test_ret = self.client.get("getTestRun", json={"testRun": test_run_id})
+                    if test_ret['components'][rr]['testedAtStage']['code'] == 'BAREMODULERECEPTION':
+                        break
+
+                for c in criterias['BARE_MODULE_SENSOR_IV']:
+                    for res in test_ret['results']:
+                        if res['code'] == c:
+                            # current_check = ((test_ret['passed']) & (res['value'] > criterias['BARE_MODULE_SENSOR_IV'][c][0]) and (res['value'] < criterias['BARE_MODULE_SENSOR_IV'][c][1]))
+                            current_check = (res['value'] > criterias['BARE_MODULE_SENSOR_IV'][c][0]) and (res['value'] < criterias['BARE_MODULE_SENSOR_IV'][c][1])
+                            if not current_check:
+                                print('{0} out of specs: {1} [{2}] '.format(c, res['value'], criterias['BARE_MODULE_SENSOR_IV'][c]))
+                            passed &= current_check
+                result['BARE_MODULE_SENSOR_IV'] = passed
+                result['module_sn'] = module_sn
+    #         else:
+    # try:
+    #     print('asasas')
+    #     result[r['code']] = 2
+    #     result['module_sn'] = module_sn
+    # except ValueError:  # other tests which are not of interest
+    #     pass
+
+
+        return result
+
+    def get_bare_assembly_data(self, module_sn, wanted_tests, result):
+        # Check module tests
+        ret = self.client.get("getComponent", json={"component": module_sn})
+        current_stage = ret['currentStage']['code']
+        self.log.info('Checking {0} for module: {1} (at stage {2})...'.format(wanted_tests, module_sn, current_stage))
+
+        for c in ret['children']:
+            if c['componentType']['code'] == 'BARE_MODULE': 
+                # bare_module_sn = c['componentType']
+                bare_module_sn = c['component']['serialNumber']
+                break
+        ret = self.client.get("getComponent", json={"component": bare_module_sn})
+
+        for r in ret['tests']:
+            if r['code'] in wanted_tests:
+                test_run_id = r['testRuns'][0]["id"]
+                test_ret = self.client.get("getTestRun", json={"testRun": test_run_id})
+                passed = True
+                for c in criterias['QUAD_BARE_MODULE_METROLOGY']:
+                    for res in test_ret['results']:
+                        if res['code'] == c:
+                            # if res['code'] == 'DISTANCE_PCB_BARE_MODULE_TOP_LEFT':
+                            #     print('ajajaajajaj', res['value'])
+                            #     current_check  =  True
+                            #     for i in range(2):
+                            #         current_check &= (res['value'][i] > criterias['QUAD_MODULE_METROLOGY'][c][i][0]) and (res['value'][i] < criterias['QUAD_MODULE_METROLOGY'][c][i][1])
+                            # else:
+                            current_check = (res['value'] > criterias['QUAD_BARE_MODULE_METROLOGY'][c][0]) and (res['value'] < criterias['QUAD_BARE_MODULE_METROLOGY'][c][1])
+                            if not current_check:
+                                print('{0} out of specs: {1} [{2}] '.format(c, res['value'], criterias['QUAD_BARE_MODULE_METROLOGY'][c]))
+                            passed &= current_check
+                result[r['code']] = passed
+                result['module_sn'] = module_sn
+        return result
+
+    
+    def get_assembly_data(self, module_sn, wanted_tests, result):
+        # Check module tests
+        ret = self.client.get("getComponent", json={"component": module_sn})
+        current_stage = ret['currentStage']['code']
+        self.log.info('Checking {0} for module: {1} (at stage {2})...'.format(wanted_tests, module_sn, current_stage))
+
+        for r in ret['tests']:
+            passed = True
+            if r['code'] in wanted_tests:
+                test_run_id = r['testRuns'][0]["id"]
+                test_ret = self.client.get("getTestRun", json={"testRun": test_run_id})
+                for c in criterias['QUAD_MODULE_METROLOGY']:
+                    for res in test_ret['results']:
+                        if res['code'] == c:
+                            current_check = True
+                            if res['code'] == 'DISTANCE_PCB_BARE_MODULE_TOP_LEFT':
+                                for i in range(2):
+                                    try:
+                                        current_check &= (res['value'][i] > criterias['QUAD_MODULE_METROLOGY'][c][i][0]) and (res['value'][i] < criterias['QUAD_MODULE_METROLOGY'][c][i][1])
+                                    except Exception:
+                                        print('could not calculate pass/fail')
+                                        current_check = False
+                            else:
+                                current_check = (res['value'] > criterias['QUAD_MODULE_METROLOGY'][c][0]) and (res['value'] < criterias['QUAD_MODULE_METROLOGY'][c][1])
+                            if not current_check:
+                                print('{0} out of specs: {1} [{2}] '.format(c, res['value'], criterias['QUAD_MODULE_METROLOGY'][c]))
+                            passed &= current_check
+                result[r['code']] = passed
+                result['module_sn'] = module_sn
+            # else:
+            #     result[r['code']] = 2
+            #     result['module_sn'] = module_sn
+
+        return result
+
+    def get_iv_data(self, module_sn, wanted_tests, result):
+        # Check module tests
+        ret = self.client.get("getComponent", json={"component": module_sn})
+        current_stage = ret['currentStage']['code']
+        self.log.info('Checking {0} for module: {1} (at stage {2})...'.format(wanted_tests, module_sn, current_stage))
+        for r in ret['tests']:
+            passed = True
+            if r['code'] in wanted_tests:
+                test_run_id = r['testRuns'][0]["id"]
+                test_ret = self.client.get("getTestRun", json={"testRun": test_run_id})
+                # print(test_ret['results'], test_ret['passed'])
+                for c in criterias['IV_MEASURE']:
+                    for res in test_ret['results']:
+                        if res['code'] == c:
+                            #current_check = ((test_ret['passed']) & (res['value'] > criterias['IV_MEASURE'][c][0]) and (res['value'] < criterias['IV_MEASURE'][c][1]))
+                            current_check = (res['value'] > criterias['IV_MEASURE'][c][0]) and (res['value'] < criterias['IV_MEASURE'][c][1])
+                            if not current_check:
+                                print('{0} out of specs: {1} [{2}] '.format(c, res['value'], criterias['IV_MEASURE'][c]))
+                            passed &= current_check
+                result[r['code']] = passed
+                result['module_sn'] = module_sn
+        return result
+
+
+
+
     def _set_component_stage(self, component_code, component_stage):
-        self.client.get("setComponentStage", json={'component': component_code,
+        self.client.post("setComponentStage", json={'component': component_code,
                                                    'stage': component_stage})
 
     def _get_component_stage(self, component_code):
