@@ -11,6 +11,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+from pathlib import Path
+
 
 def _read_file(filename):
     ''' Read .json file and check if it contains required keys.
@@ -248,7 +250,45 @@ def convert_module_vi_wirebonding_data(module_vi_data_file):
 
     return outfile_json
 
-def upload_module_data(module_metrology_data_json=None, module_mass_data_json=None, module_vi_assembly_data_json=None, module_pull_data_json=None, module_vi_wirebonding_data_json=None):
+
+def convert_module_wirebonding_information_data(module_data_file):
+    outfile_json = module_data_file[:-4] + '_module_wirebonding_info.json'
+
+    data = _read_xlsx_file(xlsx_file=module_data_file, sheet_name=0)
+    module_sn = '20UPGM' + ''.join(str(data[5, 6]).replace(' ', '-').split('-'))
+    datetime_str = datetime.strptime(data[4, 8], '%d.%m.%Y')
+    date = datetime_str.strftime("%Y-%m-%dT%H:%MZ")
+
+    HUMIDITY = data[8, 8]
+    TEMPERATURE = data[8, 7]
+    json_string = {
+            "component": module_sn,
+            "testType": "WIREBONDING",
+            "institution": "BONN",
+            "runNumber": "1",  # FIXME
+            "date": date,
+            "passed": True,
+            "problems": False,
+            "properties": {
+                "ANALYSIS_VERSION": None,
+                "MACHINE": "Bonder F&K Delvotec 5600",
+                "OPERATOR": "Wolfgang Dietsche",
+                "BOND_WIRE_BATCH": "1",
+                "BOND_PROGRAM": "standard",
+                "BONDING_JIG": "standard"
+                },
+            "results":{
+                "HUMIDITY": HUMIDITY,
+                "TEMPERATURE": TEMPERATURE
+                }
+            }
+
+    with open(outfile_json, 'w') as outfile:
+        json.dump(json_string, outfile,  indent=4)
+
+    return outfile_json
+
+def upload_module_data(module_metrology_data_json=None, module_mass_data_json=None, module_vi_assembly_data_json=None, module_pull_data_json=None, module_vi_wirebonding_data_json=None, module_wirebonding_information_data_json=None, module_picture_after_assembly=None, module_picture_after_wirebonding=None):
     ''' Upload module data
     '''
     with ITkProdDB() as itk_prodDB:
@@ -259,32 +299,60 @@ def upload_module_data(module_metrology_data_json=None, module_mass_data_json=No
             data = _read_file(module_mass_data_json)
             itk_prodDB.upload_module_data(data)
         if module_vi_assembly_data_json is not None:
+            filename = module_picture_after_assembly
             data = _read_file(module_vi_assembly_data_json)
-            itk_prodDB.upload_module_data(data)
+            filename_data = {"testRun": None, # will be set later when test run ID is know
+                    "title": "{0} after assembly".format(data['component']),
+                    "description": "{0} after assembly".format(data['component']),
+                    "url": Path(filename),
+                    "type": "file"}
+            itk_prodDB.upload_module_data(data, filename, filename_data)
         if module_pull_data_json is not None:
             data = _read_file(module_pull_data_json)
             itk_prodDB.upload_module_data(data)
         if module_vi_wirebonding_data_json is not None:
+            filename = module_picture_after_wirebonding
             data = _read_file(module_vi_wirebonding_data_json)
+            filename_data = {"testRun": None, # will be set later when test run ID is know
+                    "title": "{0} after wirebonding".format(data['component']),
+                    "description": "{0} after wirebonding".format(data['component']),
+                    "url": Path(filename),
+                    "type": "file"}
+            itk_prodDB.upload_module_data(data, filename, filename_data)
+        if module_wirebonding_information_data_json is not None:
+            data = _read_file(module_wirebonding_information_data_json)
             itk_prodDB.upload_module_data(data)
 
 
 if __name__ == "__main__":
-    module_data_files = ['/media/yannick/cernbox/ATLAS_Module_Site_Quali_Bonn/Quad_Assembly/data/ITK Pix Flex_018_Module_00137 _      6.11. 2023.xls',
+    module_data_files = ['/home/yannick/20UPGM22110131_19012024.xlsx',
                         ]
 
+    pull_data_files = ['/home/yannick/Downloads/Pull Werte  F131 0142.txt']
+
+    module_picture_after_assembly = "/home/yannick/Flex 131 M142.JPG"
+    module_picture_after_wirebonding = "/home/yannick/Flex 131 M142 gebondet.JPG"
+
     # convert and upload data
-    for module_data_file in module_data_files:
+    if len(module_data_files) != len(pull_data_files):
+        raise
+    for k in range(len(module_data_files)):
+        module_data_file = module_data_files[k]
+        pull_data_file = pull_data_files[k]
         # extract metrology, mass, VI and wire bonding quality
         module_metrology_data_json = convert_module_metrology_data(module_data_file)
         module_mass_data_json = convert_module_mass_data(module_data_file)
         module_vi_assembly_data_json = convert_module_vi_assembly_data(module_data_file)
-        module_pull_data_json = convert_module_pull_data(module_data_file)
+        module_pull_data_json = convert_module_pull_data(pull_data_file, module_vi_assembly_data_json)
         module_vi_wirebonding_data_json = convert_module_vi_wirebonding_data(module_data_file)
+        module_wirebonding_information_data_json = convert_module_wirebonding_information_data(module_data_file)
         # upload
         upload_module_data(module_metrology_data_json=module_metrology_data_json,
                            module_mass_data_json=module_mass_data_json,
                            module_vi_assembly_data_json=module_vi_assembly_data_json,
                            module_pull_data_json=module_pull_data_json,
-                           module_vi_wirebonding_data_json=module_vi_wirebonding_data_json)
-
+                           module_vi_wirebonding_data_json=module_vi_wirebonding_data_json,
+                           module_wirebonding_information_data_json=None, #module_wirebonding_information_data_json,
+                           module_picture_after_assembly=module_picture_after_assembly,
+                           module_picture_after_wirebonding=module_picture_after_wirebonding
+                           )

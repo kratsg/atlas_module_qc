@@ -10,6 +10,7 @@ from itkprodDB_interface import ITkProdDB
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from pathlib import Path
 
 X_UPPER = 39.7
 X_LOWER = 39.5
@@ -176,7 +177,7 @@ def convert_flex_vi_data(flex_mass_data_file):
 
     return outfile_json
 
-def upload_flex_data(flex_metrology_data_json=None, flex_mass_data_json=None, flex_vi_data_json=None):
+def upload_flex_data(flex_metrology_data_json=None, flex_mass_data_json=None, flex_vi_data_json=None, flex_vi_pictures=None):
     ''' Upload flex data
     '''
     with ITkProdDB() as itk_prodDB:
@@ -187,12 +188,27 @@ def upload_flex_data(flex_metrology_data_json=None, flex_mass_data_json=None, fl
             data = _read_file(flex_mass_data_json)
             itk_prodDB.upload_flex_data(data)
         if flex_vi_data_json is not None:
-            data = _read_file(flex_vi_data_json)
-            itk_prodDB.upload_flex_data(data)
+            itk_prodDB.upload_flex_data(data, filename, filename_data)
+            for k, filename in enumerate(flex_vi_pictures):
+                if k == 0:
+                    side = "frontside"
+                if k == 1:
+                    side = "frontside"
+                elif:
+                    raise RuntimeError('To many VI pictures specified!')
+                data = _read_file(flex_vi_data_json)
+                filename_data = {"testRun": None, # will be set later when test run ID is know
+                        "title": "{0} {1}".format(data['component'], side),
+                        "description": "{0} {1}".format(data['component'], side),
+                        "url": Path(filename),
+                        "type": "file"}
+
 
 if __name__ == "__main__":
-    flex_data_files = [ "/media/yannick/cernbox/ATLAS_Module_Site_Quali_Bonn/Quad_Assembly/data/ITK Pix Flex_Module  Metrology  Flex 018  Traveler 26.10. 2023.xls",
+    flex_data_files = [ "/home/yannick/Downloads/ITk  Flex 78 18.01.2024.xls",
                       ]
+
+    flex_vi_pictures = ["/home/yannick/Downloads/Flex 078.JPG", "/home/yannick/Downloads/Flex 078_B.JPG"]  # front back
 
     # convert and upload data
     for flex_data_file in flex_data_files:
@@ -203,4 +219,5 @@ if __name__ == "__main__":
         # upload
         upload_flex_data(flex_metrology_data_json=flex_metrology_data_json,
                          flex_mass_data_json=flex_mass_data_json,
-                         flex_vi_data_json=flex_vi_data_json)
+                         flex_vi_data_json=flex_vi_data_json,
+                         flex_vi_pictures=flex_vi_pictures)

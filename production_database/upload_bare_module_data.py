@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+from pathlib import Path
+
 from itkprodDB_interface import ITkProdDB
 
 
@@ -152,7 +154,7 @@ def convert_bare_module_vi_data(bare_module_vi_data_file):
 
     return outfile_json
 
-def upload_bare_module_data(bare_module_metrology_data_json=None, bare_module_mass_data_json=None, bare_module_vi_data_json=None):
+def upload_bare_module_data(bare_module_metrology_data_json=None, bare_module_mass_data_json=None, bare_module_vi_data_json=None, bare_module_vi_pictures=None):
     ''' Upload bare module data
     '''
     with ITkProdDB() as itk_prodDB:
@@ -163,11 +165,23 @@ def upload_bare_module_data(bare_module_metrology_data_json=None, bare_module_ma
             data = _read_file(bare_module_mass_data_json)
             itk_prodDB.upload_bare_module_data(data)
         if bare_module_vi_data_json is not None:
-            data = _read_file(bare_module_vi_data_json)
-            itk_prodDB.upload_bare_module_data(data)
+            itk_prodDB.upload_bare_module_data(data, filename, filename_data)
+            for k, filename in enumerate(bare_module_vi_pictures):
+                if k == 0:
+                    side = "frontside"
+                if k == 1:
+                    side = "frontside"
+                elif:
+                    raise RuntimeError('To many VI pictures specified!')
+                data = _read_file(bare_module_vi_data_json)
+                filename_data = {"testRun": None, # will be set later when test run ID is know
+                        "title": "{0} {1}".format(data['component'], side),
+                        "description": "{0} {1}".format(data['component'], side),
+                        "url": Path(filename),
+                        "type": "file"}
 
 if __name__ == "__main__":
-    bare_module_data_files = ['/media/yannick/cernbox/ATLAS_Module_Site_Quali_Bonn/Quad_Assembly/data/ITK Pix Flex_018_Module_00137 _      6.11. 2023.xls',
+    bare_module_data_files = ['/home/yannick/Downloads/ITK bare Modul 140 Metrology Inspect 18.01.2024.xls',
                             ]
 
     # convert and upload data
@@ -176,7 +190,9 @@ if __name__ == "__main__":
         bare_module_metrology_data_json = convert_bare_module_metrology_data(bare_module_data_file)
         bare_module_mass_data_json = convert_bare_module_mass_data(bare_module_data_file)
         bare_module_vi_data_json = convert_bare_module_vi_data(bare_module_data_file)
+        bare_module_vi_pictures = ["/home/yannick/Downloads/0140 front.JPG", "/home/yannick/Downloads/0140 back.JPG"]  # frontside, backside
         # upload
         upload_bare_module_data(bare_module_metrology_data_json=bare_module_metrology_data_json,
                                 bare_module_mass_data_json=bare_module_mass_data_json, 
-                                bare_module_vi_data_json=bare_module_vi_data_json)
+                                bare_module_vi_data_json=bare_module_vi_data_json,
+                                bare_module_vi_pictures=bare_module_vi_pictures)

@@ -270,9 +270,6 @@ class ITkProdDB(object):
                 result['module_sn'] = module_sn
         return result
 
-
-
-
     def _set_component_stage(self, component_code, component_stage):
         self.client.post("setComponentStage", json={'component': component_code,
                                                    'stage': component_stage})
@@ -389,7 +386,7 @@ class ITkProdDB(object):
         self.log.info(json.dumps(link_to_bare_module_json, indent=4))
         self.client.post('uploadTestRunResults', json=link_to_bare_module_json)
 
-    def upload_flex_data(self, flex_data):
+    def upload_flex_data(self, flex_data, filename=None, filename_data=None):
         # FIXME: fix run number
         # Check current stage of BARE MODULE and change stage if needed.
         flex_sn = flex_data['component']
@@ -433,10 +430,15 @@ class ITkProdDB(object):
             else:
                 self.log.error('Unkown stage ({0})'.format(current_stage))
 
-        self.client.post('uploadTestRunResults', json=flex_data)
+        self.log.info("Test: would send data:\n")
+        self.log.info(json.dumps(bare_module_data, indent=4))
+        ret = self.client.post('uploadTestRunResults', json=flex_data)
 
+        if filename is not None:
+            filename_data['testRun'] = str(ret['testRun']['id'])
+            self.upload_attachment_to_eos(filename=filename, data=filename_data)
 
-    def upload_bare_module_data(self, bare_module_data):
+    def upload_bare_module_data(self, bare_module_data, filename=None, filename_data=None):
         bare_module_sn = bare_module_data['component']
         # Check current stage of BARE MODULE and change stage if needed.
         current_stage = self._get_component_stage(component_code=bare_module_sn) # current stage of sensor tile
@@ -473,15 +475,20 @@ class ITkProdDB(object):
 
         self.log.info("Test: would send data:\n")
         self.log.info(json.dumps(bare_module_data, indent=4))
-        self.client.post('uploadTestRunResults', json=bare_module_data)
+        ret = self.client.post('uploadTestRunResults', json=bare_module_data)
+
+        if filename is not None:
+            filename_data['testRun'] = str(ret['testRun']['id'])
+            self.upload_attachment_to_eos(filename=filename, data=filename_data)
 
 
-    def upload_module_data(self, module_data):
+    def upload_module_data(self, module_data, filename=None, filename_data=None):
         module_sn = module_data['component']
-        # Check current stage of BARE MODULE and change stage if needed.
+        # Check current stage of MODULE and change stage if needed.
         current_stage = self._get_component_stage(component_code=module_sn) # current stage of sensor tile
 
         if module_data['testType'] == 'WIREBOND_PULL_TEST':
+            # FIXME: also change bare module stage
             self._get_component_stage(component_code=module_sn)
             if current_stage != 'MODULE/WIREBONDING':
                 print('need to change stage to Wirebonding')
@@ -492,7 +499,11 @@ class ITkProdDB(object):
 
         self.log.info("Test: would send data:\n")
         self.log.info(json.dumps(module_data, indent=4))
-        self.client.post('uploadTestRunResults', json=module_data)
+        ret = self.client.post('uploadTestRunResults', json=module_data)
+
+        if filename is not None:
+            filename_data['testRun'] = str(ret['testRun']['id'])
+            self.upload_attachment_to_eos(filename=filename, data=filename_data)
 
     def upload_attachment_to_eos(self, filename=None, data=None):
         with Path(filename).open("rb") as fpointer:
