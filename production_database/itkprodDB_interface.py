@@ -75,6 +75,59 @@ class ITkProdDB(object):
                     chip_sn = hex(int(chip_sn_atlas[-7:]))
                     self.log.info('{0}, {1}, IREF TRIM bit: {2}'.format(chip_sn_atlas, chip_sn, self._get_iref_trims_chip(chip_sn=chip_sn_atlas)))
 
+    def get_module(self, component_sn):
+        def get_parent_module(component):
+            for p in component['parents']:
+                if p['componentType']['code'] == 'MODULE':
+                    module_sn = p['component']['serialNumber']
+                    self.log.info(f"Parent module found: {p['componentType']['code']} with SN {module_sn}")
+                    return module_sn
+                elif p['componentType']['code'] in ['BARE_MODULE']:
+                    module_sn = p['component']['serialNumber']
+                    self.log.info(f"Parent found: {p['componentType']['code']} with SN {module_sn}")
+                    bm = self.client.get("getComponent", json={"component": module_sn})
+                    return get_parent_module(bm)
+            else:
+                self.log.warning(f"Found no parent module for {component['componentType']['code']} with SN {component['component']['serialNumber']}")
+                return component['component']['serialNumber']
+
+        component = self.client.get("getComponent", json={"component": component_sn})
+
+        if component['componentType']['code'] not in ['MODULE']:
+            self.log.warning(f"Component {component['componentType']['code']} with SN {component_sn} is not a module! Searching for parents...")
+            return get_parent_module(component)
+        else:
+            return component_sn
+
+    def get_chip_sns_of_module(self, module_sn):
+        module_sn = self.get_module(module_sn)
+        module = self.client.get("getComponent", json={"component": module_sn})
+        self.log.info(f"Getting FE chips associated to {module['componentType']['code']} with SN {module_sn}...")
+
+        if not module['componentType']['code'] == 'BARE_MODULE':
+            for bm in module['children']:
+                if bm['componentType']['code'] == 'BARE_MODULE':
+                    ret = self.client.get("getComponent", json={"component": bm['component']['serialNumber']})
+                    break
+            else:
+                ret = module
+        else:
+            ret = module
+            for p in module['parents']:
+                if p['componentType']['code'] == ['MODULE']:
+                    module_sn = p['component']['serialNumber']
+                    break
+            else:
+                self.log.warning(f'Component {module_sn} does not have an assembled module parent! Using bare module...')
+
+        chip_sns = []
+        for c in ret['children']:
+            if c['componentType']['code'] == 'FE_CHIP':
+                chip_sn_atlas = c['component']['serialNumber']
+                chip_sn = hex(int(chip_sn_atlas[-7:]))
+                chip_sns.append(chip_sn)
+        return module_sn, chip_sns
+
 
     def check_uploaded_tests(self, module_sn):
         # Check module tests
