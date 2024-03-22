@@ -1,0 +1,29 @@
+{
+    "hostIp": "itkpix-localdb.physik.uni-bonn.de",
+    "hostPort": 27017,
+    "dbName": "localdb",
+    "ssl": {
+        "enabled": false,
+        "PEMKeyFile": "null",
+        "CAFile": "null"
+    },
+    "tls": {
+        "enabled": false,
+        "CertificateKeyFile": "null",
+        "CAFile": "null"
+    },
+    "auth": "default",
+    "QC": false,
+    "environment": [
+        "vddd_voltage",
+        "vddd_current",
+        "vdda_voltage",
+        "vdda_current",
+        "vddcom_voltage",
+        "vddcom_current",
+        "hv_voltage",
+        "hv_current",
+        "temperature",
+        "temperature_moduleNTC"
+    ]
+}
